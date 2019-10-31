@@ -4,6 +4,7 @@ const path = require('path');
 const socketio = require('socket.io');
 const Filter = require('bad-words');
 const {generateMessage,generateLocationMessage} = require('../src/utils/messages');
+const {addUser,removeUser,getUser,getUsersInRoom} = require('../src/utils/users');
 
 const app = express();
 const server = http.createServer(app);
@@ -19,10 +20,24 @@ let count =0;
 
 //socket is an object that contains information regarding connection
 io.on('connection',(socket)=>{
+
     console.log("New websocket Connection");
 
-    socket.emit('message',generateMessage('Welcome'));
-    socket.broadcast.emit('message',generateMessage('A new user has joined'));
+    socket.on('join',({username, room},callback)=>{
+        const{error,user} = addUser({id:socket.id,username,room});
+        if(error){
+            return callback(error);
+        }
+
+        socket.join(user.room);
+
+        socket.emit('message',generateMessage('Welcome'));
+        socket.broadcast.to(user.room).emit('message',generateMessage(`${user.username} has joined!`));
+
+        callback();
+        //socket.emit,io.emit,socket.broadcast.emit
+        //io.to.emit, socket.broadcast.to.emit -- specific to rooms
+    });
 
     socket.on('sendMessage',(message, callback)=>{
         const filter = new Filter();
@@ -30,18 +45,25 @@ io.on('connection',(socket)=>{
         if(filter.isProfane(message)){
             return callback('profanity is not allowed');
         }
-        io.emit('message',generateMessage(message));
+        io.to('bezawada').emit('message',generateMessage(message));
         callback();
     })
 
+
     socket.on('disconnect',()=>{
-        io.emit('message',generateMessage('A user got disconnected'));
+        const user= removeUser(socket.id);
+        console.log(user);
+        if(user){
+            io.to(user.room).emit('message',generateMessage(`${user.username} has left!`));
+        }
+        
     });
 
     socket.on('sendLocation',(urlmap, callback)=>{
         io.emit("locationMessage",generateLocationMessage(urlmap));
         callback();
-    })
+    });
+
     // //send an event from server to get received by client(chat.js) ...count is available from callback
     // socket.emit('countUpdated',count);
 

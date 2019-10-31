@@ -10,6 +10,9 @@ const $messages = document.querySelector('#messages');
 const messageTemplate = document.querySelector('#message-template').innerHTML;
 const locationTemplate = document.querySelector('#location-template').innerHTML;
 
+//Options
+const{username, room} = Qs.parse(location.search,{ignoreQueryPrefix : true});
+
 socket.on('message',(message)=>{
     console.log(message);
     //getting the html and inserting it in the required place.
@@ -65,6 +68,12 @@ $sendLocation.addEventListener('click',()=>{
     });
 })
 
+socket.emit('join',{username,room},(error)=>{
+    if(error){
+        alert(error);
+        location.href ='/';
+    }
+});
 // socket.on('countUpdated',(count)=>{
 //     console.log("count has been updated ", count);
 // });
