@@ -31,38 +31,48 @@ io.on('connection',(socket)=>{
 
         socket.join(user.room);
 
-        socket.emit('message',generateMessage('Welcome'));
-        socket.broadcast.to(user.room).emit('message',generateMessage(`${user.username} has joined!`));
-
+        socket.emit('message',generateMessage('System','Welcome'));
+        socket.broadcast.to(user.room).emit('message',generateMessage('System',`${user.username} has joined!`));
+        io.to(user.room).emit('roomData',{
+            room: user.room,
+            users : getUsersInRoom(user.room)
+        });
         callback();
         //socket.emit,io.emit,socket.broadcast.emit
         //io.to.emit, socket.broadcast.to.emit -- specific to rooms
     });
 
     socket.on('sendMessage',(message, callback)=>{
+        const user = getUser(socket.id);
         const filter = new Filter();
 
         if(filter.isProfane(message)){
             return callback('profanity is not allowed');
         }
-        io.to('bezawada').emit('message',generateMessage(message));
+        io.to(user.room).emit('message',generateMessage(user.username,message));
         callback();
     })
 
+    socket.on('sendLocation',(urlmap, callback)=>{
+        const user = getUser(socket.id);
+        io.to(user.room).emit("locationMessage",generateLocationMessage(user.username,urlmap));
+        callback();
+    });
 
     socket.on('disconnect',()=>{
         const user= removeUser(socket.id);
         console.log(user);
         if(user){
-            io.to(user.room).emit('message',generateMessage(`${user.username} has left!`));
+            io.to(user.room).emit('message',generateMessage("System",`${user.username} has left!`));
         }
+        io.to(user.room).emit('roomData',{
+            room: user.room,
+            users: getUsersInRoom(user.room)
+        })
         
     });
 
-    socket.on('sendLocation',(urlmap, callback)=>{
-        io.emit("locationMessage",generateLocationMessage(urlmap));
-        callback();
-    });
+    
 
     // //send an event from server to get received by client(chat.js) ...count is available from callback
     // socket.emit('countUpdated',count);
